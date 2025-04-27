@@ -59,15 +59,15 @@ impl DatabaseHeader {
         buffer.extend_from_slice(&self.freelist_head_page.to_le_bytes());
         buffer.extend_from_slice(&self.schema_root_page.to_le_bytes());
 
-        buffer.resize(size_of::<DatabaseHeader>(), 0);
+        buffer.resize(self.page_size as usize, 0);
 
         buffer
     }
     
     /// Deserializes a byte array into a `DatabaseHeader`.
-    pub fn deserialize(bytes: &[u8]) -> Result<Self, String> {
+    pub fn deserialize(bytes: &[u8]) -> Result<Self, SerializerError> {
         if bytes.len() < size_of::<Self>() {
-            return Err("Insufficient data to deserialize DatabaseHeader".to_string());
+            return Err(SerializerError::InsufficientData("Insufficient data to deserialize DatabaseHeader".to_string()));
         }
 
         Ok(Self {
@@ -80,6 +80,64 @@ impl DatabaseHeader {
         })
     }
 }
+
+#[derive(Debug)]
+pub enum SerializerError {
+    /// Insufficient data to deserialize
+    InsufficientData(String),
+}
+
+impl std::fmt::Display for SerializerError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}", self)
+    }
+}
+
+impl std::error::Error for SerializerError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        None
+    }
+}
+
+struct FreeListPage {
+    page_size: u64,
+    next_page: u64,
+    freelist: Vec<u64>,
+}
+
+impl FreeListPage {
+    pub fn new(page_size: u64) -> Self {
+        Self { 
+            page_size, 
+            next_page: 0,
+            freelist: vec![],
+        }
+    }
+
+    pub fn serialize(&self) -> Vec<u8> {
+        let mut buffer = Vec::with_capacity(size_of::<Self>());
+        for page_id in &self.freelist {
+            buffer.extend_from_slice(&page_id.to_le_bytes());
+        }
+
+        buffer
+    }
+    
+    pub fn deserialize(bytes: &[u8], page_size: u64) -> Result<Self, SerializerError> {
+        if bytes.len() < size_of::<Self>() {
+            return Err(SerializerError::InsufficientData("Insufficient data to deserialize FreeListPage".to_string()));
+        }
+
+        let next_page = u64::from_le_bytes(bytes[0..8].try_into().unwrap());
+
+        let mut freelist = vec![];
+        for i in 8..bytes.len() / 8 {
+            freelist.push(u64::from_le_bytes(bytes[i * 8..(i + 1) * 8].try_into().unwrap()));
+        }
+
+        Ok(Self { page_size, freelist, next_page })
+    }
+} 
 
 #[cfg(test)]
 mod tests {

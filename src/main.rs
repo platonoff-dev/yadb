@@ -3,7 +3,7 @@
 //! YADB - Yet Another Database
 
 /// Database Header structure and serialization/deserialization functions.
-pub mod db_header;
+pub mod pages;
 
 /// Engine module for the database, including disk and memory engines.
 pub mod page_manager;
