@@ -6,8 +6,7 @@
 pub mod db_header;
 
 /// Engine module for the database, including disk and memory engines.
-pub mod engine;
-mod pages;
+pub mod page_manager;
 mod btree;
 
 /// Main function for the YADB database engine.
